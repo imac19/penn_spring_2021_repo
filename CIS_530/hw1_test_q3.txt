@@ -1,0 +1,2 @@
+Base accuracy: 0.4786342 time: 0.3876324
+Augment accuracy: 0.8937934 time: .45345 steps 5
