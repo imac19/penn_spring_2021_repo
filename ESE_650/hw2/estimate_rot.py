@@ -48,7 +48,7 @@ def estimate_rot(data_num=1):
     # Convert accelerometer and gyroscope data
     
     accel_biases = [511,501,506]
-    accel_sensitivity = -33
+    accel_sensitivity = 33
     converted_accel_x = -accel_convert(accel[0], accel_biases[0], accel_sensitivity)
     converted_accel_y = -accel_convert(accel[1], accel_biases[1], accel_sensitivity)
     converted_accel_z = accel_convert(accel[2], accel_biases[2], accel_sensitivity)
