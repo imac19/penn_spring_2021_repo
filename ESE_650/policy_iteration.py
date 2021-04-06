@@ -61,7 +61,8 @@ def print_grid_with_policy(grid, policy):
             elif move == (-1,0):
                 move = (0,-1)
             #plt.arrow(6,3, 0, 1, head_width=0.3, head_length=0.3, overhang=.6)
-            plt.arrow(j+.5, i+.5, move[0]*.6, move[1]*.6, head_width=0.3, head_length=0.3, overhang=.6)
+            if move != (0,0):
+                plt.arrow(j+.5, i+.5, move[0]*.6, move[1]*.6, head_width=0.3, head_length=0.3, overhang=.6)
             
     plt.show()
     
@@ -73,6 +74,9 @@ def print_grid_with_policy(grid, policy):
 # (0,-1) = Move West
 # =============================================================================
 def get_transition_probabilities_and_states(action, state):
+    
+    if state==(8,8):
+        return {state:1}
     if state==(0,0):
         if action==(-1, 0):
             return {(0,1):.5, state:.5}
@@ -125,9 +129,9 @@ def get_transition_probabilities_and_states(action, state):
             return {(state[0]+1, state[1]):.8, (state[0], state[1]+1):.1, state:.1}
     
     if action==(-1,0):
-        return {(state[0]-1, state[1]):.7, (state[0], state[1]+1):.1, (state[0], state[1]+1):.1, state:.1}
+        return {(state[0]-1, state[1]):.7, (state[0], state[1]+1):.1, (state[0], state[1]-1):.1, state:.1}
     elif action==(1,0):
-        return {(state[0]+1, state[1]):.7, (state[0], state[1]+1):.1, (state[0], state[1]+1):.1, state:.1}
+        return {(state[0]+1, state[1]):.7, (state[0], state[1]+1):.1, (state[0], state[1]-1):.1, state:.1}
     elif action==(0,1):
         return {(state[0], state[1]+1):.7, (state[0]-1, state[1]):.1, (state[0]+1, state[1]):.1, state:.1}
     elif action==(0,-1):
@@ -146,11 +150,11 @@ def initialize_policy(length, width):
     
 
 def get_updated_policy(value_map, current_policy, terminal_cost_grid):
-    possible_actions = [(0,1), (0,-1), (1,0), (-1,0), (0,0)]
+    possible_actions = [(0,1), (0,-1), (1,0), (-1,0)]
     new_policy = np.empty((10,10), dtype='object')
     for i in range(0,10):
         for j in range(0,10):
-            resultant_values = np.zeros(5)
+            resultant_values = np.zeros(4)
             current_state = (i,j)
 # =============================================================================
 #             best_action = current_policy[current_state]
@@ -158,12 +162,13 @@ def get_updated_policy(value_map, current_policy, terminal_cost_grid):
 # =============================================================================
             for k, action in enumerate(possible_actions):
                 t = get_transition_probabilities_and_states(action, current_state)
-                v = terminal_cost_grid[current_state]
+                v = 0
                 
                 for new_state in t.keys():
-                    v+= (discount * t[new_state] * value_map[new_state])
-                    
-                #if k!=0:
+                    #v += (discount * t[new_state] * value_map[new_state])
+                    v += (t[new_state] * (terminal_cost_grid[new_state] + discount*value_map[new_state]))
+                
+                #if possible_actions[0]!=(0,0):
                 if True:
                     v-=1
                 
@@ -187,7 +192,7 @@ def update_value_map(value_map, terminal_cost_grid, discount):
     for i in range(0,10):
         for j in range(0,10):
             current_state = (i,j)
-            possible_actions = [(0,0), (0,1), (0,-1), (1,0), (-1,0)]
+            possible_actions = [(0,0), (1,0), (0,-1), (0,1), (-1,0)]
             resultant_values = np.zeros(5)
             
             for k, action in enumerate(possible_actions):
@@ -198,10 +203,8 @@ def update_value_map(value_map, terminal_cost_grid, discount):
                 
                 for new_state in t.keys():
                     v+= (discount * t[new_state] * value_map[new_state])
+                    #v+= (t[new_state] * ((discount * value_map[new_state]) + terminal_cost_grid[new_state]))
                     
-                if (current_state==(0,9)):
-                    if action==(1,0):
-                        print(t)
                     
                 #if k!=0:
                 if True:
@@ -214,6 +217,7 @@ def update_value_map(value_map, terminal_cost_grid, discount):
             
     return updated_value_map
 
+# Uncomment later if needed - know this one at least kinda works
 def update_value_map_with_policy(policy, value_map, terminal_cost_grid, discount):
     updated_value_map = np.empty((10,10))
     for i in range(0,10):
@@ -227,7 +231,8 @@ def update_value_map_with_policy(policy, value_map, terminal_cost_grid, discount
                 v = terminal_cost_grid[current_state]
                 
                 for new_state in t.keys():
-                    v+= (discount * t[new_state] * value_map[new_state])
+                    #v += (discount * t[new_state] * value_map[new_state])
+                    v += (t[new_state] * discount * value_map[new_state])
                 
                 #if possible_actions[0]!=(0,0):
                 if True:
@@ -239,13 +244,41 @@ def update_value_map_with_policy(policy, value_map, terminal_cost_grid, discount
             updated_value_map[current_state] = max(resultant_values)
             
     return updated_value_map
+# =============================================================================
+# 
+# def update_value_map_with_policy(policy, value_map, terminal_cost_grid, discount):
+#     updated_value_map = np.empty((10,10))
+#     for i in range(0,10):
+#         for j in range(0,10):
+#             current_state = (i,j)
+#             possible_actions = [policy[current_state]]
+#             resultant_values = np.zeros(1)
+#             
+#             for k, action in enumerate(possible_actions):
+#                 t = get_transition_probabilities_and_states(action, current_state)
+#                 v = terminal_cost_grid[current_state]
+#                 
+#                 for new_state in t.keys():
+#                     v+= (t[new_state] * ((discount * value_map[new_state]) + terminal_cost_grid[new_state]))
+#                 
+#                 #if possible_actions[0]!=(0,0):
+#                 if True:
+#                     v-=1
+#                 
+#                 resultant_values[k] = v
+#                 
+#                 
+#             updated_value_map[current_state] = max(resultant_values)
+#             
+#     return updated_value_map
+# =============================================================================
     
 def get_policy(value_map):
     possible_actions = [(1,0), (-1,0), (0,1), (0,-1)]
     policy = np.empty((10,10), dtype='object')
     for i in range(0,10):
         for j in range(0,10):
-            best_action = (0,0)
+            best_action = possible_actions[0]
             best_val = value_map[i][j]
             for action in possible_actions:
                 possible_state = (i+action[0], j+action[1])
@@ -287,27 +320,65 @@ print_grid(value_map)
 # value iteration
 # =============================================================================
 
-iterations=15
-for i in range (iterations):
-    value_map = np.round(update_value_map(value_map, terminal_cost_grid, discount), 2)
-    
-print(value_map)
-policy = get_policy(value_map)
-print(policy)
-print_grid_with_policy(value_map, policy)
-print_grid_with_policy(terminal_cost_grid, policy)
+# =============================================================================
+# iterations=0
+# not_converged=True
+# prev_policy = initialize_policy(10, 10)
+# while not_converged:
+#     value_map = np.round(update_value_map(value_map, terminal_cost_grid, discount), 2)
+#     policy = get_policy(value_map)
+#     
+#     if np.array_equal(prev_policy, policy):
+#         not_converged=False
+#     else:
+#         prev_policy = policy
+#         iterations += 1
+#     
+# print(iterations)
+# print(value_map)
+# policy = get_policy(value_map)
+# print(policy)
+# print_grid_with_policy(value_map, policy)
+# print_grid_with_policy(terminal_cost_grid, policy)
+# =============================================================================
 
 # =============================================================================
 # policy iteration 
 # =============================================================================
 
-# =============================================================================
-# iterations=1
-# for i in range (iterations):
-#     value_map = np.round(update_value_map_with_policy(policy, value_map, terminal_cost_grid, discount), 2)
-#     #policy = get_updated_policy(value_map, policy, terminal_cost_grid)
-# 
-# 
+value_map = get_grid_world(10, 10)
+#value_map = get_grid_world_with_obstacles(10, 10)
+iterations=0
+not_converged=True
+policy = initialize_policy(10,10)
+prev_policy=initialize_policy(10, 10)
+updating_value_map = True
+while not_converged:
+    prev_new_policy=policy
+    while updating_value_map:
+        value_map = np.round(update_value_map_with_policy(prev_policy, value_map, terminal_cost_grid, discount), 2)
+        policy = get_updated_policy(value_map, policy, terminal_cost_grid)
+        
+        if np.array_equal(policy, prev_new_policy):
+            updating_value_map=False
+        else:
+            prev_new_policy=policy
+    
+    if np.array_equal(prev_policy, policy):
+        not_converged=False
+    else:
+        prev_policy=policy
+        iterations+=1
+        updating_value_map=True
+        
+    print(value_map)
+    print(policy)
+print(iterations)
+    
+
+print_grid_with_policy(value_map, policy)
+print_grid_with_policy(terminal_cost_grid, policy)
+
 # print_grid(value_map)
 # directions = np.empty((10,10))
 # actions = [(0,0), (1,0), (0,1), (-1,0), (0,-1)]
@@ -316,6 +387,5 @@ print_grid_with_policy(terminal_cost_grid, policy)
 #     for j in range(10):
 #         ind = actions.index(policy[i][j])
 #         directions[i][j] = direction_list[ind]
-#         
-# =============================================================================
+        
 #print_grid(directions)
