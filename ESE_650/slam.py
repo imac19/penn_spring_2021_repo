@@ -191,23 +191,24 @@ class slam_t:
             print('Data Read Error')
         elif sum(d>10000) > 0 :
             print('Data Read Error')
+        
+        d = np.clip(d, s.lidar_dmin, s.lidar_dmax)
 
         # 1. from lidar distances to points in the LiDAR frame
-        lidar_x = d * np.cos(s.lidar_angles+(np.pi/2))
-        lidar_y = -d * np.sin(s.lidar_angles)
+        lidar_x = d * np.cos(s.lidar_angles)
+        lidar_y = d * np.sin(s.lidar_angles)
+        lidar_z = np.zeros(len(s.lidar_angles))
+        lidar_coords = make_homogeneous_coords_3d(np.array([lidar_x, lidar_y, lidar_z]))
 
         # 2. from LiDAR frame to the body frame
-        body_x = lidar_x * np.cos(head_angle)
-        body_y = lidar_y * np.sin(head_angle)
-        
-        body_x = body_x * np.cos(neck_angle)
-        body_y = body_y * np.cos(neck_angle)
+        T = euler_to_se3(0, neck_angle, head_angle, np.array([0, 0, s.lidar_height])) 
+        body_coords = T @ lidar_coords      
 
         # 3. from body frame to world frame
-        world_x = p[0] + (body_x * np.cos(p[2]))
-        world_y = p[1] + (body_y * np.cos(p[2]))
+        T = euler_to_se3(0, 0, p[2], np.array([p[0],p[1], s.head_height]))
+        world_coords = T @ body_coords
         
-        return np.array([world_x, world_y])
+        return np.array([world_coords[0], world_coords[1]])
 
     def get_control(s, t):
         """
@@ -253,7 +254,9 @@ class slam_t:
         new weights as discussed in the writeup. Make sure that the new weights are normalized
         """
         #### TODO: XXXXXXXXXXX
-        return w*obs_logp
+        t = np.log(w) + obs_logp
+        t -= slam_t.log_sum_exp(t)
+        return np.exp(t)
         
 
     def observation_step(s, t):
@@ -297,8 +300,7 @@ class slam_t:
         print('Step 1b,1c Complete')
                 
         #2
-        probabilities = np.exp(log_odds-s.log_sum_exp(log_odds))
-        s.w = s.update_weights(s.w, probabilities)
+        s.w = s.update_weights(s.w, log_odds)
         
         print('Step 2 Complete')
         

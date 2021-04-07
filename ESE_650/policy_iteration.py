@@ -353,23 +353,40 @@ not_converged=True
 policy = initialize_policy(10,10)
 prev_policy=initialize_policy(10, 10)
 updating_value_map = True
-while not_converged:
-    prev_new_policy=policy
-    while updating_value_map:
-        value_map = np.round(update_value_map_with_policy(prev_policy, value_map, terminal_cost_grid, discount), 2)
-        policy = get_updated_policy(value_map, policy, terminal_cost_grid)
-        
-        if np.array_equal(policy, prev_new_policy):
-            updating_value_map=False
-        else:
-            prev_new_policy=policy
+
+# =============================================================================
+# for j in range(0,4):
+#     prev_new_policy=policy
+#     while updating_value_map:
+#         value_map = np.round(update_value_map_with_policy(prev_policy, value_map, terminal_cost_grid, discount), 2)
+#         policy = get_updated_policy(value_map, policy, terminal_cost_grid)
+#         
+#         if np.array_equal(policy, prev_new_policy):
+#             updating_value_map=False
+#         else:
+#             prev_new_policy=policy
+#     
+#     if np.array_equal(prev_policy, policy):
+#         not_converged=False
+#     else:
+#         prev_policy=policy
+#         iterations+=1
+#         updating_value_map=True
+#         
+#     print(value_map)
+#     print(policy)
+# print(iterations)
+# =============================================================================
+
+for j in range(0,18):
+    value_map = np.round(update_value_map_with_policy(prev_policy, value_map, terminal_cost_grid, discount), 2)
+    policy = get_updated_policy(value_map, policy, terminal_cost_grid)
     
     if np.array_equal(prev_policy, policy):
         not_converged=False
     else:
         prev_policy=policy
         iterations+=1
-        updating_value_map=True
         
     print(value_map)
     print(policy)
