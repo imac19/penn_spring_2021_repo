@@ -54,27 +54,8 @@ class map_t:
         
         cell_indices = np.empty((2,len(x)), dtype=int)
         
-        cell_val_list = np.arange(-20,20+s.resolution, s.resolution)
-        
-        counter = 0
-        i = 0
-        while counter<len(x):
-            if np.abs(x_clipped[counter]-cell_val_list[i]) <=.025:
-                cell_indices[0][counter]=i
-                counter+=1
-                i=0
-            else:
-                i+=1
-        
-        counter = 0
-        i = 0
-        while counter<len(y):
-            if np.abs(y_clipped[counter]-cell_val_list[i]) <=.025:
-                cell_indices[1][counter]=i
-                counter+=1
-                i=0
-            else:
-                i+=1
+        cell_indices[0,:] = (x_clipped+20)//s.resolution
+        cell_indices[1,:] = (y_clipped+20)//s.resolution
                 
         return cell_indices
                 
@@ -100,6 +81,9 @@ class slam_t:
 
         # initialize the map
         s.map = map_t(resolution)
+        #s.particle_trajectory = map_t(resolution)
+        s.particle_trajectory_x = []
+        s.particle_trajectory_y = []
 
     def read_data(s, src_dir, idx=0, split='train'):
         """
@@ -132,7 +116,7 @@ class slam_t:
         # sensor model lidar_log_odds_occ is the value by which we would increase the log_odds
         # for occupied cells. lidar_log_odds_free is the value by which we should decrease the
         # log_odds for free cells (which are all cells that are not occupied)
-        s.lidar_log_odds_occ = np.log(9)
+        s.lidar_log_odds_occ = np.log(9) 
         s.lidar_log_odds_free = np.log(1/9.)
 
     def init_particles(s, n=100, p=None, w=None, t0=0):
@@ -154,11 +138,12 @@ class slam_t:
         """
         #### TODO: XXXXXXXXXXX
         new_particles = np.empty((3,len(w)))
+        r = np.random.uniform(0, 1/len(w))
+        i = 0
+        c = w[0]
         for m in range(0, len(w)):
-            r = np.random.uniform()
-            u = r + (m-1)/n
-            i = 0
-            c = w[0]
+            #r = np.random.uniform(0, 1/len(w))
+            u = r + (m-1)/len(w)
             while u > c:
                 i+=1
                 c+=w[i]
@@ -167,7 +152,7 @@ class slam_t:
             new_particles[1][m] = new_location[1]
             new_particles[2][m] = new_location[2]
             
-        return new_particles  
+        return new_particles, np.full(len(w), 1/len(w))
         
         
     @staticmethod
@@ -187,11 +172,7 @@ class slam_t:
 
         # make sure each distance >= dmin and <= dmax, otherwise something is wrong in reading
         # the data
-        if sum(d<0) > 0 :
-            print('Data Read Error')
-        elif sum(d>10000) > 0 :
-            print('Data Read Error')
-        
+
         d = np.clip(d, s.lidar_dmin, s.lidar_dmax)
 
         # 1. from lidar distances to points in the LiDAR frame
@@ -281,9 +262,16 @@ class slam_t:
         joint_t = s.find_joint_t_idx_from_lidar(s.lidar[t]['t'])
         neck_angle = s.joint['head_angles'][0][joint_t]
         head_angle = s.joint['head_angles'][1][joint_t]
-        print('Step 1a Complete')
+        #print('Step 1a Complete')
         
         #1b,c)
+        
+        # particles = np.stack((s.p[0], s.p[1], s.p[2]), axis=1)
+        # distances = s.lidar[t]['scan']
+        # points = np.array([s.rays2world(p, distances, head_angle, neck_angle) for p in particles])
+        # grid_cells = np.array([s.map.grid_cell_from_xy(p[0], p[1]) for p in points])
+        # log_odds = np.array([np.sum(s.map.cells[g]) for g in grid_cells])
+                
         log_odds = np.zeros(s.n)
         for i in range(0, s.n):
             particle = [s.p[0][i], s.p[1][i], s.p[2][i]]
@@ -292,28 +280,38 @@ class slam_t:
             
             grid_cells = s.map.grid_cell_from_xy(points[0], points[1])
             
-            for j in range(len(grid_cells[0])):
-                x = grid_cells[0][j]
-                y = grid_cells[1][j]
-                log_odds[i] += s.map.cells[x][y]
+# =============================================================================
+#             for j in range(len(grid_cells[0])):
+#                 x = grid_cells[0][j]
+#                 y = grid_cells[1][j]
+#                 log_odds[i] += s.map.cells[x][y]
+# =============================================================================
+            log_odds[i] = np.sum(s.map.cells[grid_cells[0], grid_cells[1]])
                 
-        print('Step 1b,1c Complete')
+        #print('Step 1b,1c Complete')
                 
         #2
         s.w = s.update_weights(s.w, log_odds)
         
-        print('Step 2 Complete')
+        #print('Step 2 Complete')
         
         #3
-        print('test0')
+        #print('test0')
         largest_weight_index = np.argmax(s.w)
         largest_weight_particle = [s.p[0][largest_weight_index], 
                                    s.p[1][largest_weight_index], s.p[2][largest_weight_index]]
+        
+        largest_particle_x_y = s.map.grid_cell_from_xy(np.array([largest_weight_particle[0]])
+                                                       , np.array([largest_weight_particle[1]]))
+        #s.particle_trajectory.cells[largest_particle_x_y[0], largest_particle_x_y[1]] = 1
+        s.particle_trajectory_x.append(largest_particle_x_y[0][0])
+        s.particle_trajectory_y.append(largest_particle_x_y[1][0])
+
         distances = s.lidar[t]['scan']
         points = s.rays2world(largest_weight_particle, distances, head_angle, neck_angle)
         grid_cells = s.map.grid_cell_from_xy(points[0], points[1])
         grid_cell_tuples = [(grid_cells[0][k], grid_cells[1][k]) for k in range(0, len(grid_cells[0]))]
-        print('test1')
+        #print('test1')
         
 # =============================================================================
 #         for x in range(0, len(s.map.cells[0])):
@@ -326,25 +324,28 @@ class slam_t:
 #         s.map.log_odds += s.lidar_log_odds_free
 # =============================================================================
         
+        s.map.log_odds += s.lidar_log_odds_free
         for x, y in grid_cell_tuples:
             s.map.log_odds[x][y] = s.map.log_odds[x][y] - s.lidar_log_odds_free + s.lidar_log_odds_occ
                     
         s.map.log_odds = np.clip(s.map.log_odds, -s.map.log_odds_max, s.map.log_odds_max)
         
-        print('test2')
+        #print('test2')
         
-        for x in range(0, len(s.map.cells[0])):
-            for y in range(0, len(s.map.cells[1])):
-                if s.map.log_odds[x][y] >= s.map.log_odds_thresh:
-                    s.map.cells[x][y] = 1
-                else:
-                    s.map.cells[x][y] = 0
+        s.map.cells[s.map.log_odds>=s.map.log_odds_thresh] = 1
+        
+        # for x in range(0, len(s.map.cells[0])):
+        #     for y in range(0, len(s.map.cells[1])):
+        #         if s.map.log_odds[x][y] >= s.map.log_odds_thresh:
+        #             s.map.cells[x][y] = 1
+        #         else:
+        #             s.map.cells[x][y] = 0
                     
-        print('Step 3 Complete')
+        #print('Step 3 Complete')
         
         s.resample_particles()
         
-        print('Resampling')
+        #print('Resampling')
                 
 
     def resample_particles(s):

@@ -9,6 +9,7 @@ Created on Fri Apr  2 21:44:53 2021
 import numpy as np
 from matplotlib import pyplot as plt
 from seaborn import heatmap
+from matplotlib import patches
 
 def get_grid_world(length, width):
     grid_world = np.zeros((length, width))
@@ -41,14 +42,23 @@ def get_grid_world_with_obstacles(length, width):
 
 def print_grid(grid):
     plt.figure()
+    plt.title('Final Value Function Values')
     heatmap(grid, xticklabels=range(0,10), yticklabels=range(0,10), linewidths=.1,
-            linecolor='black', square=True, annot=False, cmap='YlGnBu')
+            linecolor='black', square=True, annot=True, cmap='coolwarm')
+    plt.savefig('final_values')
+    plt.show()
+    
+def print_grid_base(grid):
+    plt.figure()
+    plt.title('Base Environment')
+    heatmap(grid, xticklabels=range(0,10), yticklabels=range(0,10), linewidths=.1,
+            linecolor='black', square=True, annot=True, cmap='coolwarm')
+    plt.savefig('base_grid')
     plt.show()
 
-def print_grid_with_policy(grid, policy):
-    plt.figure()
+def print_grid_with_policy(grid, policy, iteration, original_map=False):
     heatmap(grid, xticklabels=range(0,10), yticklabels=range(0,10), linewidths=.1,
-            linecolor='black', square=True, annot=True, cmap='YlGnBu')
+            linecolor='black', square=True, annot=False, cmap='coolwarm')
     for i in range(len(policy)):
         for j in range(len(policy[0])):
             move = policy[i][j]
@@ -61,10 +71,17 @@ def print_grid_with_policy(grid, policy):
             elif move == (-1,0):
                 move = (0,-1)
             #plt.arrow(6,3, 0, 1, head_width=0.3, head_length=0.3, overhang=.6)
-            if move != (0,0):
+            if (i,j) != (8,8):
                 plt.arrow(j+.5, i+.5, move[0]*.6, move[1]*.6, head_width=0.3, head_length=0.3, overhang=.6)
-            
-    plt.show()
+    
+    if not original_map:
+        plt.title('Value Function Heatmap At Iteration {}'.format(iteration))
+        plt.savefig('heatmap_iteration_{}'.format(iteration))
+        plt.show()
+    else:
+        plt.title('Final Policy On Base Environment')
+        plt.savefig('final_policy')
+        plt.show()
     
 # =============================================================================
 # Actions:
@@ -377,10 +394,13 @@ updating_value_map = True
 #     print(policy)
 # print(iterations)
 # =============================================================================
-
-for j in range(0,18):
+print_grid_with_policy(value_map, policy, iterations)
+while not_converged:
     value_map = np.round(update_value_map_with_policy(prev_policy, value_map, terminal_cost_grid, discount), 2)
     policy = get_updated_policy(value_map, policy, terminal_cost_grid)
+    
+    if iterations in [0, 1, 2, 3, 7, 13, 17]:
+        print_grid_with_policy(value_map, policy, iterations+1)
     
     if np.array_equal(prev_policy, policy):
         not_converged=False
@@ -391,10 +411,15 @@ for j in range(0,18):
     print(value_map)
     print(policy)
 print(iterations)
+print_grid_with_policy(terminal_cost_grid, policy, iterations+1, original_map=True)
+print_grid_base(terminal_cost_grid)
+print_grid(value_map)
     
 
-print_grid_with_policy(value_map, policy)
-print_grid_with_policy(terminal_cost_grid, policy)
+# =============================================================================
+# print_grid_with_policy(value_map, policy)
+# print_grid_with_policy(terminal_cost_grid, policy)
+# =============================================================================
 
 # print_grid(value_map)
 # directions = np.empty((10,10))
