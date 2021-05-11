@@ -13,8 +13,6 @@ def rollout(e, q, eps=0, T=200, render=False):
 
     x = e.reset()
     for t in range(T):
-        if render:
-            e.render()
         u = q.control(th.from_numpy(x).float().unsqueeze(0),
                       eps=eps)
         u = u.int().numpy().squeeze()
